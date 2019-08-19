@@ -29,19 +29,18 @@ declare -A site_paths
 declare -A site_backups
 
 for site in $@; do
-    if ! site_paths[$site]="$(resolve_site "$SITES_AVAILABLE" "$site")"; then
-	echo "Site $site does not exist in $SITES_AVAILABLE, skipping." >&2
-	continue
+    if site_paths[$site]="$(resolve_site "$SITES_AVAILABLE" "$site")"; then
+	site_backups[$site]="$(mktemp)"
+	cp -f "${site_paths[$site]}" "${site_backups[$site]}"
+    else
+	site_paths[$site]="$SITES_AVAILABLE/$site$DEFAULT_EXT"
     fi
-
-    site_backups[$site]="$(mktemp)"
-    cp -f "${site_paths[$site]}" "${site_backups[$site]}"
 done
 
 "$EDITOR" "${site_paths[@]}"
 
 changed=false
-for site in ${!site_paths[@]}; do
+for site in ${!site_backups[@]}; do
     if ! cmp "${site_paths[$site]}" "${site_backups[$site]}" >&/dev/null; then
 	changed=true
     fi

@@ -6,6 +6,7 @@ UNDERLINE="\e[4m"
 END="\e[0m"
 
 SITE_EXTS="${NGINX_SITE_EXTS:-.conf}"
+DEFAULT_EXT="${NGINX_DEFAULT_EXT:-.conf}"
 SITES_AVAILABLE="${NGINX_SITES_AVAILABLE:-/etc/nginx/sites-available}"
 SITES_ENABLED="${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}"
 
