@@ -1,0 +1,36 @@
+#!/bin/bash
+set -o errexit -o errtrace -o nounset
+
+source "$(which nginx-site)"
+
+USAGE="usage: ${PROG:-$0} <site1> {<siteN>}"
+
+if [[ "$#" -lt 1 ]]; then
+    echo $USAGE >&2
+    exit 1
+fi
+
+changed=false
+for site in $@; do
+    if ! site_path="$(resolve_site "$SITES_AVAILABLE" "$site")"; then
+	echo "Site $site does not exist in $SITES_AVAILABLE, skipping." >&2
+	continue
+    fi
+    
+    site_file="$(basename "$site_path")"
+
+    link_path="$SITES_ENABLED/$site_file"
+    if [[ -e "$link_path" ]] || [[ -h "$link_path" ]]; then
+	echo "Link $link_path already exists, skipping." >&2
+	continue
+    fi
+    
+    link_target="$(realpath -m "--relative-to=$(dirname "$link_path")" "$site_path")"
+    ln -s "$link_target" "$link_path"
+    changed=true
+done
+
+if $changed; then
+    reload_nginx
+fi
+

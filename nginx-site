@@ -1,0 +1,80 @@
+#!/bin/bash
+set -o errexit -o errtrace -o nounset
+
+GREEN="\e[0;32m"
+UNDERLINE="\e[4m"
+END="\e[0m"
+
+SITE_EXTS="${NGINX_SITE_EXTS:-.conf}"
+SITES_AVAILABLE="${NGINX_SITES_AVAILABLE:-/etc/nginx/sites-available}"
+SITES_ENABLED="${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}"
+
+if [[ "$(which "$0")" == "$(which "$BASH_SOURCE")" ]]; then
+    if [[ -z "${1:-}" ]]; then
+	COMMAND="list"
+    else
+	COMMAND="$1"
+	shift
+    fi
+
+    if type "nginx-site-$COMMAND" >&/dev/null; then
+	PROG="$0 $COMMAND" exec "nginx-site-$COMMAND" $@
+    else
+	echo "usage: $0 list" >&2
+	echo "       $0 enable" >&2
+	echo "       $0 disable" >&2
+	echo "       $0 edit" >&2
+	exit 1
+    fi
+fi
+
+resolve_site() {
+    local directory="$1"
+    local site_name="$2"
+
+    for ext in "" $SITE_EXTS; do
+	local candidate="$directory/$site_name$ext"
+	if [[ -e "$candidate" ]] || [[ -h "$candidate" ]]; then
+	    echo "$candidate"
+	    return
+	fi
+    done
+
+    return 1
+}
+
+sites_in() {
+    local directory="$1"
+
+    for ext in "" $SITE_EXTS; do
+	if [[ -z "$ext" ]]; then
+	    find "$directory" -maxdepth 1 -type f ! -name "*.*" 
+	else
+	    find "$directory" -maxdepth 1 -type f -name "*$ext"
+	fi
+    done
+}
+
+is_enabled() {
+    local site_path="$1"
+    local link_path="$SITES_ENABLED/$(basename "$site_path")"
+    if [[ -h "$link_path" ]] && [[ "$(realpath "$link_path")" == "$site_path" ]]; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+reload_nginx() {
+    if local nginx_pid="$(pgrep "nginx.*master" -f)"; then
+	if ! local out="$(nginx -t 2>&1)"; then
+	    echo "Nginx config test was not successful. Not reloading nginx process."
+	    echo "$out"
+	    return
+	fi
+
+	echo "Reloading nginx. (Sending SIGHUP to PID $nginx_pid)"
+	kill -s HUP "$nginx_pid"
+    fi
+}
+

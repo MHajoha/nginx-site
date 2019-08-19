@@ -1,0 +1,55 @@
+#!/bin/bash
+set -o errexit -o errtrace -o nounset
+
+source "$(which nginx-site)"
+
+USAGE="usage: ${PROG:-$0} <site1> {<siteN>}"
+
+if [[ "$#" -lt 1 ]]; then
+    echo $USAGE >&2
+    exit 1
+fi
+
+EDITOR="${EDITOR:-${VISUAL:-}}"
+if [[ -z "$EDITOR" ]]; then
+    for candidate in vim vi nano pico ed; do
+	if command -v "$candidate" >&/dev/null || type "$candidate" >&/dev/null; then
+	    EDITOR="$candidate"
+	    break
+	fi
+    done
+fi
+
+if [[ -z "$EDITOR" ]]; then
+    echo "No known editor found on PATH. Set \$EDITOR to your desired editor command." >&2
+    exit 1
+fi
+
+declare -A site_paths
+declare -A site_backups
+
+for site in $@; do
+    if ! site_paths[$site]="$(resolve_site "$SITES_AVAILABLE" "$site")"; then
+	echo "Site $site does not exist in $SITES_AVAILABLE, skipping." >&2
+	continue
+    fi
+
+    site_backups[$site]="$(mktemp)"
+    cp -f "${site_paths[$site]}" "${site_backups[$site]}"
+done
+
+"$EDITOR" "${site_paths[@]}"
+
+changed=false
+for site in ${!site_paths[@]}; do
+    if ! cmp "${site_paths[$site]}" "${site_backups[$site]}" >&/dev/null; then
+	changed=true
+    fi
+done
+
+if $changed; then
+    reload_nginx
+else
+    echo "No sites were changed, not reloading nginx."
+fi
+

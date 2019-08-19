@@ -1,0 +1,24 @@
+#!/bin/bash
+set -o errexit -o nounset
+
+source "$(which nginx-site)"
+
+USAGE="usage: ${PROG:-$0}"
+
+if [[ "$#" -ne 0 ]]; then
+    echo $USAGE >&2
+    exit 1
+fi
+
+for site_path in $(sites_in "$SITES_AVAILABLE"); do
+    site_file="$(basename -- "$site_path")"
+    site_name="${site_file%.*}"
+    site_ext="${site_file##*.}"
+
+    if is_enabled "$site_path"; then
+	printf "$GREEN%s$END (enabled)\n" "$site_name"
+    else
+	printf "%s\n" "$site_name"
+    fi
+done
+
