@@ -1,0 +1,43 @@
+#!/bin/bash
+set -o errexit -o errtrace -o nounset
+
+source "$(which nginx-site)"
+
+USAGE="usage: ${PROG:-$0} <new site> [<template>]"
+
+if (( "$#" < 1 || "$#" > 2 )); then
+    echo $USAGE >&2
+    exit 1
+fi
+
+readonly NEW_SITE_PATH="$SITES_AVAILABLE/$1$DEFAULT_EXT"
+if [[ -e "$NEW_SITE_PATH" ]]; then
+    echo "File $NEW_SITE_PATH already exists." >&2
+    exit 1
+fi
+
+if [[ "$#" == 2 ]]; then
+    # Resolve and copy the given file for use as a template
+    cp "$(resolve_site "$SITES_AVAILABLE" "$2")" "$NEW_SITE_PATH"
+else
+    # Write a basic template
+    cat > "$NEW_SITE_PATH" <<"EOF"
+#!/bin/bash
+set -o errexit -o errtrace -o nounset
+
+source "$(which nginx-site)"
+
+USAGE="usage: ${PROG:-$0}"
+
+if [[ "$#" != 0 ]]; then
+    echo $USAGE >&2
+    exit 1
+fi
+
+EOF
+fi
+
+nginx-site-edit "$NEW_SITE_PATH"
+
+reload_nginx
+

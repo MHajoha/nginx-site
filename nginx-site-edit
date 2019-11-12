@@ -10,20 +10,7 @@ if [[ "$#" -lt 1 ]]; then
     exit 1
 fi
 
-EDITOR="${EDITOR:-${VISUAL:-}}"
-if [[ -z "$EDITOR" ]]; then
-    for candidate in vim vi nano pico ed; do
-	if command -v "$candidate" >&/dev/null || type "$candidate" >&/dev/null; then
-	    EDITOR="$candidate"
-	    break
-	fi
-    done
-fi
-
-if [[ -z "$EDITOR" ]]; then
-    echo "No known editor found on PATH. Set \$EDITOR to your desired editor command." >&2
-    exit 1
-fi
+find_editor
 
 declare -A site_paths
 declare -A site_backups
